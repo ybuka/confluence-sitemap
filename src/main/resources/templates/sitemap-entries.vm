@@ -1,0 +1,10 @@
+#foreach ($item in $items)    <url>
+        <loc>${item.url}</loc>
+        #if($stringUtils.isNotBlank($item.lastmod))<lastmod>${item.lastmod}</lastmod>#end
+
+        #if ($stringUtils.isNotBlank($item.changefreq))<changefreq>${item.changefreq}</changefreq>#end
+
+        #if ($stringUtils.isNotBlank($item.priority))<priority>${item.priority}</priority>#end
+
+    </url>
+#end

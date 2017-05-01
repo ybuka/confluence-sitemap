@@ -5,9 +5,13 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 
+import javax.servlet.http.HttpServletResponse;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.ybuka.confluence.plugins.sitemap.SiteMapComponent.TaskStatus;
+
+import com.opensymphony.webwork.ServletActionContext;
 
 public class SiteMapStatusAction extends SiteMapAdminAction {
 	private static final long serialVersionUID = 1L;
@@ -18,7 +22,11 @@ public class SiteMapStatusAction extends SiteMapAdminAction {
 
 	@Override
 	public String execute() throws Exception {
-
+		
+		TaskStatus ts =  getLastTaskStatus();
+		if(ts !=null && org.apache.commons.lang3.StringUtils.isNoneBlank(ts.getErrorMssg())){
+			addActionError("Last generation of sitemap is failed. " + ts.getErrorMssg());
+		}		
 		return SUCCESS;
 	}
 
@@ -31,11 +39,12 @@ public class SiteMapStatusAction extends SiteMapAdminAction {
 	}
 	
 	public String download(){
+		setHeaders();
 		return SUCCESS;
 	}
 
 	public InputStream getInputStream() {
-		File f = new File(siteMapGenerator.retrieveAbsoluteFileLocation());
+		File f = new File(siteMapGenerator.retrieveOutputFileLocation());
 		InputStream inputStream = null;
 		try {
 			inputStream = new FileInputStream(f);
@@ -46,12 +55,17 @@ public class SiteMapStatusAction extends SiteMapAdminAction {
 	}
 	
 	public boolean isSitemapExist(){
-		File f = new File(siteMapGenerator.retrieveAbsoluteFileLocation());
+		File f = new File(siteMapGenerator.retrieveOutputFileLocation());
 		return f.isFile() & f.exists();
 	}
 	
 	public String getScheduledJobPageURI(){
-		return this.getGlobalSettings().getBaseUrl() + "/admin/scheduledjobs/viewscheduledjobs.action";
+		return this.getGlobalSettings().getBaseUrl() + "/admin/scheduledjobs/viewscheduledjobs.action#siteMapGeneratorJobId";
 	}
-
+	
+	protected void setHeaders() {
+	    final HttpServletResponse response = ServletActionContext.getResponse();	
+	    //The Content-Disposition could not be set using atlassian xwork, so -  set it here
+	    response.addHeader("Content-Disposition", "attachment; filename=sitemap.xml");
+	  }
 }

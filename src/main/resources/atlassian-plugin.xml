@@ -1,9 +1,9 @@
 <atlassian-plugin key="org.ybuka.confluence.plugins.sitemap" name="Confluence Sitemap" plugins-version="2">
 
 	<plugin-info>
-		<description>Generate Site Map for Confluence</description>
+		<description>Generate Sitemap for Confluence</description>
 		<version>0.0.1</version>
-		<vendor name="yBuka" url="http://" />
+		<vendor name="yBuka" url="https://github.com/ybuka" />
 		<application-version min="5.9" max="6.1" />
 		<param name="configure.url">/admin/plugins/yb-sitemap/view-config.action</param>
 		<param name="atlassian-data-center-compatible">false</param>
@@ -19,7 +19,7 @@
 	<component key="siteMapComponent" class="org.ybuka.confluence.plugins.sitemap.SiteMapComponent" />
 	<component key="siteMapGeneratorJob" class="org.ybuka.confluence.plugins.sitemap.SiteMapGeneratorJobRunner" />
 
-	<job-config name="Site Map Generator Job Trigger" key="siteMapGeneratorJobId">
+	<job-config name="Sitemap Generator Job Trigger" key="siteMapGeneratorJobId">
 		<job key="siteMapGeneratorJob" perClusterJob="false" clusteredOnly="false" />
 		<schedule cron-expression="0 5 5 2 1-12 ?" jitterSecs="10" />
 		<managed editable="true" keepingHistory="true" canRunAdhoc="true" canDisable="true" />
@@ -31,11 +31,11 @@
 		<resource type="download" name="sitemap.css" location="/css/sitemap.css" />		
 		<!-- context avaliable in Confluence -->
 		<!-- https://developer.atlassian.com/confdev/confluence-plugin-guide/confluence-plugin-module-types/web-resource-module#WebResourceModule-WebResourceContextsinConfluence -->
-		<!-- <context>atl.general</context> -->
+		<!-- <context>atl.general</context> -->		
 	</web-resource>
 
-	<web-item key="item.yb.admin.sitemap" name="Site Map" section="system.admin/administration" weight="10">
-		<description>Site Map</description>
+	<web-item key="item.yb.admin.sitemap" name="Sitemap" section="system.admin/administration" weight="10">
+		<description>Sitemap</description>
 		<label key="label.item.yb.admin.sitemap" />
 		<link>/admin/plugins/yb-sitemap/view-status.action</link>
 	</web-item>
@@ -46,7 +46,7 @@
 			<default-interceptor-ref name="defaultStack" />
 
 			<action name="view-config" class="org.ybuka.confluence.plugins.sitemap.SiteMapConfigAction">
-				<result name="success" type="velocity">/templates/sitemap-config.vm</result>
+				<result name="success" type="velocity">/pages/sitemap-config.vm</result>
 			</action>
 
 			<action name="save-config" class="org.ybuka.confluence.plugins.sitemap.SiteMapConfigAction" method="save">
@@ -54,12 +54,11 @@
 			</action>
 
 			<action name="view-status" class="org.ybuka.confluence.plugins.sitemap.SiteMapStatusAction">
-				<result name="success" type="velocity">/templates/sitemap-status.vm</result>
+				<result name="success" type="velocity">/pages/sitemap-status.vm</result>
 			</action>
 			
 			<action name="download" class="org.ybuka.confluence.plugins.sitemap.SiteMapStatusAction" method="download">				
 				<result name="success" type="stream">
-					<param name="contentDisposition">attachment; filename="sitemap.xml"</param>
 					<param name="contentType">text/xml</param>
 					<param name="inputName">inputStream</param>
 					<param name="parse">false</param>

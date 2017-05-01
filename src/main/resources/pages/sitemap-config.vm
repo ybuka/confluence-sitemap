@@ -1,0 +1,63 @@
+<html>
+  <head>
+    <meta name="decorator" content="atl.admin"/>
+    <title>Sitemap Configuration</title>
+    <content tag="selectedWebItem">item.yb.admin.sitemap</content>
+    #requireResource("org.ybuka.confluence.plugins.sitemap:yb-sitemap")
+  </head>
+  <body> 
+  	<div class="yb-link">
+  		<a href="view-status.action"  >$i18n.getText("link.statuspage")</a>
+  	</div> 	
+	<form method="POST" name="sitemap-conf" id="sitemap-conf" class="aui" action="save-config.action">
+		<table>
+			<colgroup>
+				<col width="300">
+  				<col width="520">  
+			</colgroup>
+			<tr>
+				<td>$i18n.getText("conf.fileLocation")
+					<div style="max-width:300px; margin-top:10px;"><span>$i18n.getText("conf.fileLocation.desc")<span></div>
+				</td>		
+				<td valign="top">
+					<input type="text" class="text long-field" name="fileLocation"	value="$action.fileLocation" />					
+				</td>
+			</tr>
+			
+			<tr>
+				<td>$i18n.getText("conf.changefreq")</td>		
+				<td><input type="text" class="text" name="changefreq"
+					value="$action.changefreq" />
+				</td>
+			</tr>
+			
+			<tr>
+				<td>$i18n.getText("conf.priority")</td>		
+				<td><input type="text" class="text" name="priority"
+					value="$action.priority" />
+				</td>
+			</tr>
+			<tr>
+				<td>$i18n.getText("conf.includePersonalSpaces")</td>		
+				<td>		
+					<input type="checkbox"  name="includePersonalSpaces" value='true' #if ($action.includePersonalSpaces) checked#end class="checkbox"/>
+				</td>
+			</tr>
+			
+			<tr>
+				<td>$i18n.getText("conf.includeArchivedSpaces")</td>		
+				<td>
+					<input type="checkbox"  name="includeArchivedSpaces" value='true' #if ($action.includeArchivedSpaces) checked#end class="checkbox"/>
+				</td>
+			</tr>	
+		</table>
+		#if ($action.isJobRunning())	
+		   <br/><span>Currently running</span>
+		#else
+			<button type="submit" form="sitemap-conf" value="Save" class="aui-button default-submit" >Save</button>
+		#end
+	</form>
+
+ 	#parse("/breadcrumbs.vm") 
+  </body>
+ </html>

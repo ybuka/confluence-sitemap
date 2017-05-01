@@ -25,7 +25,7 @@ public class SiteMapGeneratorJobRunner implements JobRunner {
 
 	@Override
 	public JobRunnerResponse runJob(JobRunnerRequest request) {
-		log.error("Sitemap Job triggered");
+		log.info("Sitemap Job triggered");
 		this.siteMapGenerator.generateSiteMap();
 		return null;
 	}

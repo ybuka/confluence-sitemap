@@ -16,10 +16,11 @@
 		<confluence.version>6.0.7</confluence.version>
 		<confluence.data.version>6.0.7</confluence.data.version>
 		<amps.version>6.2.11</amps.version>
+		<servlet.version>3.0.1</servlet.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
-	<dependencies>
-	
+	<dependencies>	
 		<dependency>
 			<groupId>com.atlassian.confluence</groupId>
 			<artifactId>confluence</artifactId>
@@ -32,6 +33,17 @@
 			<version>${confluence.version}</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>${servlet.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+           <groupId>org.apache.velocity</groupId>
+  		   <artifactId>velocity</artifactId>
+  		   <version>1.6.4-atlassian-9</version>
+        </dependency>
 	</dependencies>
 
 	<build>

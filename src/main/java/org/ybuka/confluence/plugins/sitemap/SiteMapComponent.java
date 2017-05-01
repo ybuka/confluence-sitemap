@@ -3,6 +3,8 @@ package org.ybuka.confluence.plugins.sitemap;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,7 +40,7 @@ public class SiteMapComponent {
 	private static final Logger log = LoggerFactory.getLogger(SiteMapComponent.class);
 
 	public static final String BANDANA_CONTEXT = "org.ybuka.confluence.plugins.sitemap";
-	public static final String BANDANA_KEY = "site-map-config";
+	public static final String BANDANA_CONF_KEY = "site-map-config";
 	public static final String BANDANA_KEY_LAST_EXECUTION = "last-execution";
 
 	protected static final DateFormat SITEMAP_DATEFORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
@@ -49,18 +51,16 @@ public class SiteMapComponent {
 	private final PermissionManager permissionManager;
 	private final SettingsManager settingsManager;
 	private final ApplicationProperties applicationProperties;
-	private final BandanaManager bandanaManager;	
+	private final BandanaManager bandanaManager;
 	private final TransactionTemplate transactionTemplate;
-	
-	private TaskStatus status;
-	private SiteMapConfigBean siteMapConfiguration;
+	private SitemapGenerator generator;
 
 	public SiteMapComponent(SpaceManager spaceManager, PageManager pageManager, PermissionManager permissionManager, SettingsManager settingsManager,
 			ApplicationProperties applicationProperties, TransactionTemplate transactionTemplate, BandanaManager bandanaManager) {
+
 		super();
 		this.spaceManager = spaceManager;
 		this.pageManager = pageManager;
-
 		this.permissionManager = permissionManager;
 		this.settingsManager = settingsManager;
 		this.applicationProperties = applicationProperties;
@@ -70,25 +70,25 @@ public class SiteMapComponent {
 	}
 
 	public void generateSiteMap() {
-		List<SiteMapEntry> items = prepareEntries();
-		saveSiteMap(items);
-	}
 
-	@SuppressWarnings("unchecked")
-	private List<SiteMapEntry> prepareEntries() {
-		updateSiteMapConfiguration();
-		return (List<SiteMapEntry>) transactionTemplate.execute(new TransactionCallback<Object>() {
+		transactionTemplate.execute(new TransactionCallback<Object>() {
+
 			@Override
 			public Object doInTransaction() {
-				List<SiteMapEntry> itemsList = generateSiteMapEntries();
-				return itemsList;
+				generateSiteMapInt();
+				return null;
 			}
 		});
 
 	}
 
-	public TaskStatus getStatus() {
-		return status;
+	public synchronized TaskStatus getStatus() {
+		TaskStatus ts = null;
+		if (getSitemapGenerator() != null) {
+			ts = getSitemapGenerator().taskStatus.clone();
+		}
+
+		return ts;
 	}
 
 	public TaskStatus getLastFinishedStatus() {
@@ -98,91 +98,26 @@ public class SiteMapComponent {
 		return ts;
 	}
 
-	private List<SiteMapEntry> generateSiteMapEntries() {
-
-		List<SiteMapEntry> itemsList = new ArrayList<>(20000);
-		status = new TaskStatus();
-		status.setStarted(System.currentTimeMillis());
-		SiteMapConfigBean c = getConfiguration();
-
-		String baseUrl = settingsManager.getGlobalSettings().getBaseUrl();
-		itemsList = new ArrayList<SiteMapComponent.SiteMapEntry>();
-
-		List<Space> allSpaces = spaceManager.getAllSpaces(createSpaceQueryBuilder().build());
-		status.setSpaceCount(allSpaces.size());
-
-		log.info("Spaces count " + allSpaces.size());
-		long rememCount = 0;
-
-		for (Space space : allSpaces) {
-			rememCount = itemsList.size();
-			log.info("Space {} in process ", space.getKey());
-			List<Page> pages = pageManager.getPages(space, true);
-			for (Page ps : pages) {
-
-				if (permissionManager.hasPermission(null, Permission.VIEW, ps)) {
-					itemsList.add(new SiteMapEntry(baseUrl + ps.getUrlPath(), ps.getLastModificationDate(), c.getChangefreq(), c.getPriority()));
-					status.itemsAdded++;
-				}
-				status.itemsProcessed++;
-			}
-
-			for (BlogPost blog : pageManager.getBlogPosts(space, false)) {
-				if (permissionManager.hasPermission(null, Permission.VIEW, blog)) {
-					itemsList.add(new SiteMapEntry(baseUrl + blog.getUrlPath(), blog.getLastModificationDate(), c.getChangefreq(), c.getPriority()));
-					status.itemsAdded++;
-				}
-				status.itemsProcessed++;
-			}
-			log.info("Space {} completed. Processed {} items , added {} ", space.getKey(), pages.size(), itemsList.size() - rememCount);
-			status.spaceProcesed++;
-		}
-		return itemsList;
-	}
-
-	private void updateSiteMapConfiguration() {
-
-		ConfluenceBandanaContext context = new ConfluenceBandanaContext(BANDANA_CONTEXT);
-		Object obj = this.bandanaManager.getValue(context, BANDANA_KEY);
-		if (obj == null) {
-			siteMapConfiguration = getDefaultConfiguration();
-			bandanaManager.setValue(context, BANDANA_KEY, siteMapConfiguration);
-		} else {
-			siteMapConfiguration = (SiteMapConfigBean) obj;
-		}
-	}
-
-	private Builder createSpaceQueryBuilder() {
-
-		SiteMapConfigBean c = siteMapConfiguration;
-		Builder builder = SpacesQuery.newQuery();
-
-		if (c.getSpaces() != null && !c.getSpaces().isEmpty()) {
-			builder = builder.withSpaceKeys(c.getSpaces());
-		} else {
-
-			if (!c.isIncludePersonalSpaces()) {
-				builder = builder.withSpaceType(com.atlassian.confluence.spaces.SpaceType.GLOBAL);
-			}
-
-			if (!c.isIncludeArchivedSpaces()) {
-				builder = builder.withSpaceStatus(SpaceStatus.CURRENT);
-			}
-		}
-
-		builder = builder.withPermission(SpacePermission.VIEWSPACE_PERMISSION).forUser(null);
-
-		return builder;
+	public String retrieveOutputFileLocation() {
+		return retrieveOutFilePath(this.getConfiguration());
 	}
 
 	public SiteMapConfigBean getConfiguration() {
-		updateSiteMapConfiguration();
-		return siteMapConfiguration;
+		SiteMapConfigBean result = null;
+		ConfluenceBandanaContext context = new ConfluenceBandanaContext(BANDANA_CONTEXT);
+		Object obj = this.bandanaManager.getValue(context, BANDANA_CONF_KEY);
+		if (obj == null) {
+			result = getDefaultConfiguration();
+			bandanaManager.setValue(context, BANDANA_CONF_KEY, result);
+		} else {
+			result = (SiteMapConfigBean) obj;
+		}
+		return result;
 	}
 
 	public void setConfiguration(SiteMapConfigBean siteMapConfiguration) {
 		ConfluenceBandanaContext context = new ConfluenceBandanaContext(BANDANA_CONTEXT);
-		bandanaManager.setValue(context, BANDANA_KEY, siteMapConfiguration);
+		bandanaManager.setValue(context, BANDANA_CONF_KEY, siteMapConfiguration);
 	}
 
 	private SiteMapConfigBean getDefaultConfiguration() {
@@ -196,7 +131,36 @@ public class SiteMapComponent {
 		return c;
 	}
 
-	private String retrieveAbsoluteFileLocation(SiteMapConfigBean cb) {
+	private void generateSiteMapInt() {
+		try {
+			createNewGenerator();
+			getSitemapGenerator().generateSitemap();
+
+			File f = new File(retrieveOutputFileLocation());
+			if (f.exists()) {
+				log.info("Remove old sitemap file '" + f.getAbsolutePath() +"'");
+				f.delete();
+			}
+
+			if (!getSitemapGenerator().outFile.renameTo(f)) {				
+				throw new IOException("Could not rename to file '" + f.getAbsolutePath() + "'");
+			}else{
+				log.info("Save sitemap file '" + f.getAbsolutePath() +"'");
+			}
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+			getSitemapGenerator().taskStatus.setErrorMssg(e.getMessage());
+		} finally {
+			getSitemapGenerator().taskStatus.setEnded(System.currentTimeMillis());
+			TaskStatus ts = getSitemapGenerator().taskStatus.clone();
+			killSitemapGenerator();
+			bandanaManager.setValue(new ConfluenceBandanaContext(BANDANA_CONTEXT), BANDANA_KEY_LAST_EXECUTION, ts);
+
+		}
+
+	}
+
+	private String retrieveOutFilePath(SiteMapConfigBean cb) {
 		String homeDir = applicationProperties.getHomeDirectory().getAbsolutePath();
 		if (homeDir.endsWith(File.separator)) {
 			homeDir = homeDir.substring(0, homeDir.length() - 1);
@@ -204,33 +168,146 @@ public class SiteMapComponent {
 		return cb.getFileLocation().replace("{confluence_home}", homeDir);
 	}
 
-	public String retrieveAbsoluteFileLocation() {
-		return retrieveAbsoluteFileLocation(this.getConfiguration());
+	private File createNewFile(String path) throws IOException {
+		File f = new File(path);
+		if (f.exists()) {
+			throw new IOException("File '" + path + "' already exist");
+		}
+		File parent = f.getParentFile();
+		if (!parent.exists()) {
+			if (!parent.mkdirs()) {
+				throw new IOException("Could not create directory '" + parent.getAbsolutePath() + "'");
+			}
+			if ( ! f.createNewFile() ){
+				throw new IOException("Could not create file '" + f.getAbsolutePath() + "'");
+			}
+		}
+		return f;
 	}
 
-	private void saveSiteMap(List<SiteMapEntry> itemsList) {
-		Map<String, Object> contextMap = MacroUtils.defaultVelocityContext();
-		contextMap.put("items", itemsList);
-		File f = new File(retrieveAbsoluteFileLocation(siteMapConfiguration));
-		FileWriter w = null;
-		try {
-			f.createNewFile();
-			w = new FileWriter(f);
-			VelocityUtils.writeRenderedTemplate(w, "templates/sitemap.vm", contextMap);
-			w.flush();
-		} catch (IOException e) {
-			log.error(e.toString(), e);
-		} finally {
-			if (w != null) {
-				try {
-					w.close();
-				} catch (IOException e) {
+	private synchronized SitemapGenerator getSitemapGenerator() {
+		return generator;
+	}
+
+	private synchronized void killSitemapGenerator() {
+		generator = null;
+	}
+
+	private synchronized void createNewGenerator() throws IllegalStateException {
+		if (generator != null) {
+			throw new IllegalStateException("Could not create new instance of SiteMapComponent.SitemapGenerator -  already exist. st-hd");
+		}
+		SiteMapConfigBean configBean = getConfiguration();
+		generator = new SitemapGenerator(configBean);
+	}
+
+	class SitemapGenerator {
+		private final SiteMapConfigBean config;
+		private TaskStatus taskStatus;
+		private SiteMapWriter writer;
+		private File outFile;
+
+		public SitemapGenerator(SiteMapConfigBean config) {
+			this.config = config;
+			taskStatus = new TaskStatus();
+			taskStatus.setStarted(System.currentTimeMillis());
+		}
+
+		public void generateSitemap() throws Exception {
+			try {
+				init();
+				writer.writeXMLHeader();
+				writeSitemapEntries();
+				writer.writeXMLEnd();
+
+			} finally {
+				if (writer != null) {
+					writer.closeWriter();
 				}
 			}
 		}
-		status.setEnded(System.currentTimeMillis());
-		bandanaManager.setValue(new ConfluenceBandanaContext(BANDANA_CONTEXT), BANDANA_KEY_LAST_EXECUTION, status);
-		status=null;
+
+		private void init() throws Exception {
+			outFile = createTemporaryOutFile();
+			FileWriter fw = new FileWriter(outFile);
+			writer = new SiteMapWriter(fw);
+		}
+
+		private File createTemporaryOutFile() throws IOException {
+			File f = new File(retrieveOutFilePath(config));
+			// create tmp file in the same directory as output
+			File tmpFile = new File(f.getParentFile(), "sitemap_tmp_" + System.currentTimeMillis() + ".xml");
+			createNewFile(tmpFile.getAbsolutePath());
+			return tmpFile;
+		}
+
+		private void writeSitemapEntries() throws IOException {
+
+			String baseUrl = settingsManager.getGlobalSettings().getBaseUrl();
+
+			List<Space> spaces = spaceManager.getAllSpaces(createSpaceQueryBuilder().build());
+			taskStatus.setSpaceCount(spaces.size());
+
+			log.info("Spaces count " + spaces.size());
+			long rememItemsProcessed = 0;
+			long rememItemsAdded = 0;
+
+			for (Space space : spaces) {
+				rememItemsProcessed = taskStatus.itemsProcessed;
+				rememItemsAdded = taskStatus.itemsAdded;
+				log.info("Space {} in process ", space.getKey());
+				List<Page> pages = pageManager.getPages(space, true);
+				for (Page ps : pages) {
+
+					if (permissionManager.hasPermission(null, Permission.VIEW, ps)) {
+						writer.write(new SiteMapEntry(baseUrl + ps.getUrlPath(), ps.getLastModificationDate(), config.getChangefreq(), config.getPriority()));
+						taskStatus.itemsAdded++;
+					}
+					taskStatus.itemsProcessed++;
+				}
+
+				for (BlogPost blog : pageManager.getBlogPosts(space, false)) {
+					if (permissionManager.hasPermission(null, Permission.VIEW, blog)) {
+						writer.write(new SiteMapEntry(baseUrl + blog.getUrlPath(), blog.getLastModificationDate(), config.getChangefreq(), config.getPriority()));
+						taskStatus.itemsAdded++;
+					}
+					taskStatus.itemsProcessed++;
+				}
+
+				log.info("Space {} completed. Processed {} items , added {} ", space.getKey(), taskStatus.itemsProcessed - rememItemsProcessed,
+						taskStatus.itemsAdded - rememItemsAdded);
+				taskStatus.spaceProcesed++;
+			}
+			taskStatus.setEnded(System.currentTimeMillis());
+		}
+
+		/**
+		 * Create query builder based on configuration
+		 * 
+		 * @return
+		 */
+		private Builder createSpaceQueryBuilder() {
+
+			Builder builder = SpacesQuery.newQuery();
+
+			if (config.getSpaces() != null && !config.getSpaces().isEmpty()) {
+				builder = builder.withSpaceKeys(config.getSpaces());
+			} else {
+
+				if (!config.isIncludePersonalSpaces()) {
+					builder = builder.withSpaceType(com.atlassian.confluence.spaces.SpaceType.GLOBAL);
+				}
+
+				if (!config.isIncludeArchivedSpaces()) {
+					builder = builder.withSpaceStatus(SpaceStatus.CURRENT);
+				}
+			}
+
+			builder = builder.withPermission(SpacePermission.VIEWSPACE_PERMISSION).forUser(null);
+
+			return builder;
+		}
+
 	}
 
 	public class SiteMapEntry {
@@ -238,7 +315,7 @@ public class SiteMapComponent {
 		private String lastmod;
 		private String changefreq;
 		private String priority;
-		
+
 		public SiteMapEntry() {
 
 		}
@@ -293,7 +370,8 @@ public class SiteMapComponent {
 
 	}
 
-	public static class TaskStatus implements Cloneable {
+	public static class TaskStatus implements Cloneable, Serializable {
+		private static final long serialVersionUID = 1L;
 
 		protected long started;
 		protected long ended = -1;
@@ -301,9 +379,10 @@ public class SiteMapComponent {
 		protected long spaceProcesed = 0;
 		protected long itemsProcessed = 0;
 		protected long itemsAdded = 0;
+		// Not null is required for Bandana Context serialization
+		protected String errorMssg = "";
 
-		@Override
-		protected TaskStatus clone() throws CloneNotSupportedException {
+		protected TaskStatus clone() {
 			TaskStatus clone = new TaskStatus();
 			clone.started = started;
 			clone.spaceCount = spaceCount;
@@ -311,6 +390,7 @@ public class SiteMapComponent {
 			clone.itemsProcessed = itemsProcessed;
 			clone.itemsAdded = itemsAdded;
 			clone.ended = ended;
+			clone.errorMssg = errorMssg;
 			return clone;
 		}
 
@@ -374,6 +454,60 @@ public class SiteMapComponent {
 
 		public void setEnded(long ended) {
 			this.ended = ended;
+		}
+
+		public String getErrorMssg() {
+			return errorMssg;
+		}
+
+		public void setErrorMssg(String errorMssg) {
+			this.errorMssg = errorMssg;
+		}
+	}
+
+	class SiteMapWriter {
+
+		private static final int BUFFER_SIZE = 3;
+		private OutputStreamWriter writer;
+		private Map<String, Object> contextMap;
+		private List<SiteMapEntry> buffer;
+
+		public SiteMapWriter(OutputStreamWriter writer) throws Exception {
+			this.writer = writer;
+			contextMap = MacroUtils.defaultVelocityContext();
+			buffer = new ArrayList<>(BUFFER_SIZE);
+		}
+
+		public void writeXMLHeader() {
+			VelocityUtils.writeRenderedTemplate(writer, "templates/sitemap-header.vm", contextMap);
+		}
+
+		public void writeXMLEnd() throws IOException {
+			flushBuffer();
+			// write xml end
+			VelocityUtils.writeRenderedContent(writer, (CharSequence) "</urlset>", contextMap);
+
+		}
+
+		public void write(SiteMapEntry siteMapEntry) throws IOException {
+			buffer.add(siteMapEntry);
+			if (buffer.size() == BUFFER_SIZE) {
+				flushBuffer();
+			}
+		}
+
+		public void flushBuffer() throws IOException {
+			contextMap.put("items", buffer);
+			VelocityUtils.writeRenderedTemplate(writer, "templates/sitemap-entries.vm", contextMap);
+			writer.flush();
+			buffer.clear();
+		}
+
+		public void closeWriter() throws IOException {
+			if (writer != null) {
+				writer.flush();
+				writer.close();
+			}
 		}
 	}
 }
