@@ -1,0 +1,30 @@
+<html>
+  <head>
+    <meta name="decorator" content="atl.admin"/>
+    <title>Sitemap</title>
+    <content tag="selectedWebItem">item.yb.admin.sitemap</content>
+    #requireResource("org.ybuka.confluence.plugins.sitemap:yb-sitemap")    
+  </head>
+  <body>
+  	<div id="aui-message-bar"></div>
+  	<div class="yb-link">
+	  	#if($action.isSitemapExist())	  		
+	  	<a href="download.action" target="_blank" >$i18n.getText("link.download")</a>
+	  	#end
+	  	<a href="view-config.action" >$i18n.getText("link.configure")</a>
+	  	<a href="$action.getScheduledJobPageURI()" >$i18n.getText("link.scheduledjobpage")</a>
+  	</div>
+  	
+  	#if ($action.getLastTaskStatus())
+  		<div> Last execution : $action.getLastTaskStatus().asString()</div>
+  	#end
+  	
+  	#if($status)
+  		<div>
+  		Currently running : $status.asString()
+  		</div>
+  	#end  	
+  	
+  	#parse("/breadcrumbs.vm") 
+  </body>
+ </html>

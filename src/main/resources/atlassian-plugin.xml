@@ -1,0 +1,71 @@
+<atlassian-plugin key="org.ybuka.confluence.plugins.sitemap" name="Confluence Sitemap" plugins-version="2">
+
+	<plugin-info>
+		<description>Generate Site Map for Confluence</description>
+		<version>0.0.1</version>
+		<vendor name="yBuka" url="http://" />
+		<application-version min="5.9" max="6.1" />
+		<param name="configure.url">/admin/plugins/yb-sitemap/view-config.action</param>
+		<param name="atlassian-data-center-compatible">false</param>
+	</plugin-info>
+
+	<!-- import from the product container -->
+	<component-import key="applicationProperties" interface="com.atlassian.sal.api.ApplicationProperties" />
+
+	<component-import name="SAL Transaction Template" key="transactionTemplate">
+		<interface>com.atlassian.sal.api.transaction.TransactionTemplate</interface>
+	</component-import>
+
+	<component key="siteMapComponent" class="org.ybuka.confluence.plugins.sitemap.SiteMapComponent" />
+	<component key="siteMapGeneratorJob" class="org.ybuka.confluence.plugins.sitemap.SiteMapGeneratorJobRunner" />
+
+	<job-config name="Site Map Generator Job Trigger" key="siteMapGeneratorJobId">
+		<job key="siteMapGeneratorJob" perClusterJob="false" clusteredOnly="false" />
+		<schedule cron-expression="0 5 5 2 1-12 ?" jitterSecs="10" />
+		<managed editable="true" keepingHistory="true" canRunAdhoc="true" canDisable="true" />
+	</job-config>
+
+	<!-- add our i18n resource -->
+	<resource type="i18n" name="i18n" location="localization" />
+	<web-resource key="yb-sitemap" name="yBuka Sitemap Web Resources">		
+		<resource type="download" name="sitemap.css" location="/css/sitemap.css" />		
+		<!-- context avaliable in Confluence -->
+		<!-- https://developer.atlassian.com/confdev/confluence-plugin-guide/confluence-plugin-module-types/web-resource-module#WebResourceModule-WebResourceContextsinConfluence -->
+		<!-- <context>atl.general</context> -->
+	</web-resource>
+
+	<web-item key="item.yb.admin.sitemap" name="Site Map" section="system.admin/administration" weight="10">
+		<description>Site Map</description>
+		<label key="label.item.yb.admin.sitemap" />
+		<link>/admin/plugins/yb-sitemap/view-status.action</link>
+	</web-item>
+
+	<xwork name="ybuka.sitemap" key="ybuka.sitemap">
+	
+		<package name="sitemap" extends="default" namespace="/admin/plugins/yb-sitemap">
+			<default-interceptor-ref name="defaultStack" />
+
+			<action name="view-config" class="org.ybuka.confluence.plugins.sitemap.SiteMapConfigAction">
+				<result name="success" type="velocity">/templates/sitemap-config.vm</result>
+			</action>
+
+			<action name="save-config" class="org.ybuka.confluence.plugins.sitemap.SiteMapConfigAction" method="save">
+				<result name="success" type="redirect">view-config.action</result>
+			</action>
+
+			<action name="view-status" class="org.ybuka.confluence.plugins.sitemap.SiteMapStatusAction">
+				<result name="success" type="velocity">/templates/sitemap-status.vm</result>
+			</action>
+			
+			<action name="download" class="org.ybuka.confluence.plugins.sitemap.SiteMapStatusAction" method="download">				
+				<result name="success" type="stream">
+					<param name="contentDisposition">attachment; filename="sitemap.xml"</param>
+					<param name="contentType">text/xml</param>
+					<param name="inputName">inputStream</param>
+					<param name="parse">false</param>
+				</result>				
+			</action>
+		</package>
+	</xwork>
+
+</atlassian-plugin>
