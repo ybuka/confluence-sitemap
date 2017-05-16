@@ -6,7 +6,7 @@
 	<description>Generate sitemap for Confluence</description>
 	<groupId>org.ybuka.atlassian</groupId>
 	<artifactId>confluence-sitemap</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.1</version>
 	<packaging>atlassian-plugin</packaging>
 	<organization>
 		<name>yBuka</name>
