@@ -2,7 +2,7 @@
 
 	<plugin-info>
 		<description>Generate Sitemap for Confluence</description>
-		<version>0.0.1</version>
+		<version>0.1.0</version>
 		<vendor name="yBuka" url="https://github.com/ybuka" />
 		<application-version min="5.9" max="6.1" />
 		<param name="configure.url">/admin/plugins/yb-sitemap/view-config.action</param>
@@ -29,6 +29,8 @@
 	<resource type="i18n" name="i18n" location="localization" />
 	<web-resource key="yb-sitemap" name="yBuka Sitemap Web Resources">		
 		<resource type="download" name="sitemap.css" location="/css/sitemap.css" />		
+		<!-- the older version of select2 js also used by Confluence -->
+		
 		<!-- context avaliable in Confluence -->
 		<!-- https://developer.atlassian.com/confdev/confluence-plugin-guide/confluence-plugin-module-types/web-resource-module#WebResourceModule-WebResourceContextsinConfluence -->
 		<!-- <context>atl.general</context> -->		

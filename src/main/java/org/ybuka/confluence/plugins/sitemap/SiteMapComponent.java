@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.atlassian.bandana.BandanaManager;
+import com.atlassian.confluence.labels.Label;
+import com.atlassian.confluence.labels.LabelManager;
 import com.atlassian.confluence.pages.BlogPost;
 import com.atlassian.confluence.pages.Page;
 import com.atlassian.confluence.pages.PageManager;
@@ -52,11 +54,12 @@ public class SiteMapComponent {
 	private final SettingsManager settingsManager;
 	private final ApplicationProperties applicationProperties;
 	private final BandanaManager bandanaManager;
+	private final LabelManager labelManager;
 	private final TransactionTemplate transactionTemplate;
 	private SitemapGenerator generator;
 
 	public SiteMapComponent(SpaceManager spaceManager, PageManager pageManager, PermissionManager permissionManager, SettingsManager settingsManager,
-			ApplicationProperties applicationProperties, TransactionTemplate transactionTemplate, BandanaManager bandanaManager) {
+			ApplicationProperties applicationProperties, TransactionTemplate transactionTemplate, BandanaManager bandanaManager, LabelManager labelManager) {
 
 		super();
 		this.spaceManager = spaceManager;
@@ -66,7 +69,7 @@ public class SiteMapComponent {
 		this.applicationProperties = applicationProperties;
 		this.transactionTemplate = transactionTemplate;
 		this.bandanaManager = bandanaManager;
-
+		this.labelManager = labelManager;
 	}
 
 	public void generateSiteMap() {
@@ -138,14 +141,14 @@ public class SiteMapComponent {
 
 			File f = new File(retrieveOutputFileLocation());
 			if (f.exists()) {
-				log.info("Remove old sitemap file '" + f.getAbsolutePath() +"'");
+				log.info("Remove old sitemap file '" + f.getAbsolutePath() + "'");
 				f.delete();
 			}
 
-			if (!getSitemapGenerator().outFile.renameTo(f)) {				
+			if (!getSitemapGenerator().outFile.renameTo(f)) {
 				throw new IOException("Could not rename to file '" + f.getAbsolutePath() + "'");
-			}else{
-				log.info("Save sitemap file '" + f.getAbsolutePath() +"'");
+			} else {
+				log.info("Save sitemap file '" + f.getAbsolutePath() + "'");
 			}
 		} catch (Exception e) {
 			log.error(e.getMessage(), e);
@@ -178,7 +181,7 @@ public class SiteMapComponent {
 			if (!parent.mkdirs()) {
 				throw new IOException("Could not create directory '" + parent.getAbsolutePath() + "'");
 			}
-			if ( ! f.createNewFile() ){
+			if (!f.createNewFile()) {
 				throw new IOException("Could not create file '" + f.getAbsolutePath() + "'");
 			}
 		}
@@ -241,7 +244,7 @@ public class SiteMapComponent {
 			return tmpFile;
 		}
 
-		private void writeSitemapEntries() throws IOException {
+		private void writeSitemapEntries() throws Exception {
 
 			String baseUrl = settingsManager.getGlobalSettings().getBaseUrl();
 
@@ -282,30 +285,49 @@ public class SiteMapComponent {
 		}
 
 		/**
-		 * Create query builder based on configuration
+		 * Create space search query builder based on configuration
 		 * 
 		 * @return
+		 * @throws Exception 
 		 */
-		private Builder createSpaceQueryBuilder() {
+		private Builder createSpaceQueryBuilder() throws Exception {
 
 			Builder builder = SpacesQuery.newQuery();
 
 			if (config.getSpaces() != null && !config.getSpaces().isEmpty()) {
 				builder = builder.withSpaceKeys(config.getSpaces());
 			} else {
+				if (config.getCategories() != null && !config.getCategories().isEmpty()) {
+					List<String> strLabels = convertCategoriesToLabes(config.getCategories());
+					List<Label> labels = labelManager.getLabels(strLabels);
+					if( labels.isEmpty() ){
+						throw new Exception("Sitemap generator couldnot find any Space with configured Categories. Please correct your configurations");
+					}
+					builder = builder.withLabels(labels);
+				} else {
 
-				if (!config.isIncludePersonalSpaces()) {
-					builder = builder.withSpaceType(com.atlassian.confluence.spaces.SpaceType.GLOBAL);
-				}
+					if (!config.isIncludePersonalSpaces()) {
+						builder = builder.withSpaceType(com.atlassian.confluence.spaces.SpaceType.GLOBAL);
+					}
 
-				if (!config.isIncludeArchivedSpaces()) {
-					builder = builder.withSpaceStatus(SpaceStatus.CURRENT);
+					if (!config.isIncludeArchivedSpaces()) {
+						builder = builder.withSpaceStatus(SpaceStatus.CURRENT);
+					}
 				}
 			}
 
 			builder = builder.withPermission(SpacePermission.VIEWSPACE_PERMISSION).forUser(null);
 
 			return builder;
+		}
+		
+		private List<String> convertCategoriesToLabes(List<String> catigories){
+			List<String> result =new ArrayList<>();
+			for(String category : catigories){
+				result.add("team:" + category);
+			}
+			return result;
+			
 		}
 
 	}

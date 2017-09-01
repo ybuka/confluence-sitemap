@@ -11,6 +11,7 @@ public class SiteMapConfigBean {
 	private boolean includePersonalSpaces;
 	private boolean includeArchivedSpaces;
 	private List<String> spaces;
+	private List<String> categories;
 
 	public String getFileLocation() {
 		return fileLocation;
@@ -67,4 +68,13 @@ public class SiteMapConfigBean {
 	public void setSpaces(List<String> spaces) {
 		this.spaces = spaces;
 	}
+
+	public List<String> getCategories() {
+		return categories;
+	}
+
+	public void setCategories(List<String> categories) {
+		this.categories = categories;
+	}
+	
 }
